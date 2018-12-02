@@ -18,7 +18,7 @@
 # encryption).
 
 # Exit with nonzero exit code if anything fails
-set -ex
+set -e
 
 ###############################################################################
 # Configuration                                                               #
@@ -90,6 +90,8 @@ echo "npm: @next modification date: ${NPM_NEXT_DATE}"
 echo "npm: @latest version: ${NPM_LATEST_VERSION}"
 echo "npm: local version: ${NPM_LOCAL_VERSION}"
 echo ""
+
+env
 
 ###############################################################################
 # Check if we should deploy                                                   #

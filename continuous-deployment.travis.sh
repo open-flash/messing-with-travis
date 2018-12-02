@@ -95,8 +95,8 @@ echo ""
 # Check if we should deploy                                                   #
 ###############################################################################
 
-if [[ "${GIT_REPO}" == "${MAIN_REPO}" ]]; then
-  echo "Skipping deployment: Current repo ${GIT_REPO} is not on the main repo ${MAIN_REPO}."
+if [[ "${GIT_REPO}" != "${MAIN_REPO}" ]]; then
+  echo "Skipping deployment: Current repo ${GIT_REPO} is not the main repo ${MAIN_REPO}."
   exit 0
 fi
 

@@ -47,7 +47,9 @@ GIT_HEAD_BRANCH="${TRAVIS_BRANCH}"
 # If this is build for a tag, name of the tag (empty string otherwise)
 GIT_HEAD_TAG="${TRAVIS_TAG}"
 # Possible values: "branch", "tag", "pr"
-CI_BUILD_TYPE=$([[ "${TRAVIS_PULL_REQUEST}" == "true" ]] && echo "pr" || [ -n "${TRAVIS_TAG}" ] && echo "tag" || echo "branch")
+CI_BUILD_TYPE=$([[ "${TRAVIS_PULL_REQUEST}" != "false" ]] && echo "pr" || [ -n "${TRAVIS_TAG}" ] && echo "tag" || echo "branch")
+# Branch name or tag name
+GIT_REPO="${TRAVIS_REPO_SLUG}"
 
 # Get CI-independent build info
 
@@ -76,20 +78,27 @@ NPM_LATEST_VERSION=`npm view "${NPM_LOCAL_NAME}@latest" version 2> /dev/null || 
 # Local version of the package
 NPM_LOCAL_VERSION=`jq --raw-output .version < package.json`
 
-echo "ci: build id: $BUILD_ID"
-echo "ci: build type: $CI_BUILD_TYPE"
-echo "git: branch: $GIT_HEAD_BRANCH"
-echo "git: tag: $GIT_HEAD_TAG"
-echo "git: is tag on deployment branch ($MAIN_BRANCH): $IS_GIT_HEAD_TAG_ON_MAIN_BRANCH"
-echo "npm: @next modification date: $NPM_NEXT_DATE"
-echo "npm: @latest version: $NPM_LATEST_VERSION"
-echo "npm: local version: $NPM_LOCAL_VERSION"
+echo "config: main repo: ${MAIN_REPO}"
+echo "config: main branch: ${MAIN_BRANCH}"
+echo "ci: build id: ${BUILD_ID}"
+echo "ci: build type: ${CI_BUILD_TYPE}"
+echo "git: repo: ${GIT_REPO}"
+echo "git: branch: ${GIT_HEAD_BRANCH}"
+echo "git: tag: ${GIT_HEAD_TAG}"
+echo "git: is tag on main branch: ${IS_GIT_HEAD_TAG_ON_MAIN_BRANCH}"
+echo "npm: @next modification date: ${NPM_NEXT_DATE}"
+echo "npm: @latest version: ${NPM_LATEST_VERSION}"
+echo "npm: local version: ${NPM_LOCAL_VERSION}"
 echo ""
 
 ###############################################################################
 # Check if we should deploy                                                   #
 ###############################################################################
 
+if [[ "${GIT_REPO}" == "${MAIN_REPO}" ]]; then
+  echo "Skipping deployment: Current repo ${GIT_REPO} is not on the main repo ${MAIN_REPO}."
+  exit 0
+fi
 
 case ${CI_BUILD_TYPE} in
   "pr")
@@ -98,25 +107,25 @@ case ${CI_BUILD_TYPE} in
     ;;
   "tag")
     # Only commits to the source branch should deploy
-    if [ "$IS_GIT_HEAD_TAG_ON_MAIN_BRANCH" != "true" ]; then
-      echo "Skipping deployment: Current tag $GIT_HEAD_TAG is not on the deployment branch $MAIN_BRANCH."
+    if [[ "${IS_GIT_HEAD_TAG_ON_MAIN_BRANCH}" != "true" ]]; then
+      echo "Skipping deployment: Current tag ${GIT_HEAD_TAG} is not on the deployment branch ${MAIN_BRANCH}."
       exit 0
     fi
     # Release if there is a git tag matching the version in `package.json` (pre-release by default).
     if [[ ${GIT_HEAD_TAG} != "v$NPM_LOCAL_VERSION" ]]; then
-      echo "Skipping deployment: Tag ${GIT_HEAD_TAG} is not v$NPM_LOCAL_VERSION."
+      echo "Skipping deployment: Tag ${GIT_HEAD_TAG} is not v${NPM_LOCAL_VERSION}."
       exit 0
     fi
     ;;
   "branch")
     # Only commits to the source branch should deploy
-    if [ "$GIT_HEAD_BRANCH" != "$MAIN_BRANCH" ]; then
-        echo "Skipping deployment: Not on the deployment branch $MAIN_BRANCH."
+    if [[ "${GIT_HEAD_BRANCH}" != "${MAIN_BRANCH}" ]]; then
+        echo "Skipping deployment: Not on the deployment branch ${MAIN_BRANCH}."
         exit 0
     fi
     if (( ${GIT_HEAD_TIME} - ${NPM_NEXT_TIME} < ${DEPLOY_INTERVAL})); then
       # The last version was published long enough before the current commit
-      echo "Skipping deployment: Latest deployment occurred less than $DEPLOY_INTERVAL seconds ago."
+      echo "Skipping deployment: Latest deployment occurred less than ${DEPLOY_INTERVAL} seconds ago."
       exit 0
     fi
     ;;
@@ -134,6 +143,8 @@ else
 fi
 echo "+------------------------------------------------------------+"
 echo ""
+
+exit 0
 
 ###############################################################################
 # npm deployment                                                              #
